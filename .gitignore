@@ -1,2 +1,5 @@
 oldcode
 data
+.ipynb_checkpoints
+tests/.cache
+__pycache__
