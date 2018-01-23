@@ -23,3 +23,10 @@ def has_extensions(filename, extensions):
 def sort_filenames(filenames):
     """Sorts a list of file names based on a number in the file name"""
     return sorted(filenames, key=lambda x: int(''.join([c for c in x if c in '0123456789'])))
+
+def parse_dat(dat_path):
+    with open(dat_path) as f:
+        lines = f.readlines()
+    digits = [int(x) for x in ''.join(lines[2:]) if x in '0123456789']
+    assert len(digits) == 81
+    return digits

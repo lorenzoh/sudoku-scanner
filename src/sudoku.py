@@ -23,10 +23,16 @@ class Sudoku:
 
         self.preprocessed = self.resized.copy()
         self.grid = None
+        self.processed_grid = None
         self.corners = None
 
         self.is_preprocessed = False
         self.is_transformed = False
+        self.is_grid_processed = False
+
+        dat_path = ''.join(self.img_path.split(sep='.')[:-1]) + '.dat'
+        if os.path.isfile(dat_path):
+            self.true_digits = datautils.parse_dat(dat_path)
 
     def resize(self, img, max_side=640):
         factor = max_side / max(img.shape)
@@ -171,12 +177,16 @@ class Sudoku:
             self.corners.astype(np.float32), boundary)
 
         self.grid = cv2.warpPerspective(img, M, (size, size))
+        self.is_transformed = True
 
     def preprocess_transformed(self):
         """
         STAGE 4
         Preprocesses the transformed puzzle to make it easier to extract digits
         """
+        if not self.is_transformed:
+            self.transform()
+
         img = self.grid.copy()
 
         img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
@@ -186,6 +196,97 @@ class Sudoku:
         self.processed_grid  = img
 
     def preprocess_digits(self):
-        img = self.processed_grid
+        if not self.is_grid_processed:
+            self.preprocess_transformed()
 
-        
+        img = self.processed_grid
+        print('Processed grid:', img.shape)
+        grid_size = img.shape[0]
+        digit_size = grid_size // 9
+        self.cleaned = img.copy()
+        for x in range(0, grid_size, digit_size):
+            for y in range(0, grid_size, digit_size):
+                digit = img[y:(y + digit_size), x:(x + digit_size)]
+                cleaned_digit, prediction = find_number(digit.copy())
+
+                cleaned_digit, prediction = center_number(digit)
+                vis.show_img(cleaned_digit)
+                vis.show_img(digit)
+                self.cleaned[y:(y + digit_size), x:(x + digit_size)] = cleaned_digit
+
+
+def find_number(img):
+    number = False
+    dim = img.shape[0]
+    min_area = dim
+    max_area = dim * 10
+    center = dim // 2
+    max_center_dist = (3 * dim) // 16
+    mask = np.zeros((dim+2, dim+2), np.uint8)
+    for x in range(max_center_dist):
+        for i in range(2):
+            if i == 0:
+                pnt = (center + x, center + x)
+            elif i == 1:
+                pnt = (center - x, center - x)
+            if img[pnt] == 0:
+                area, flood, _, corners = cv2.floodFill(img, mask, pnt, 128)
+                if area < max_area and area > min_area:
+                    number = True
+                    break
+        if number:
+            break
+    if not number:
+        img[:, :] = 255
+        return img, 0
+    else:
+        img[img == 0] = 255
+        mask = np.zeros((dim+2, dim+2), np.uint8)
+        area, flood, _, corners = cv2.floodFill(img, mask, pnt, 0)
+        img[img == 128] = 255
+        return img, -1
+
+
+def find_borders(img):
+    dim = img.shape[0] - 1
+    top_border = 0
+
+    for y in range(dim):
+        if 0 in img[y, :]:
+            break
+        top_border += 1
+    bottom_border = 0
+    for y in range(dim):
+        if 0 in img[dim - y, :]:
+            break
+        bottom_border += 1
+    left_border = 0
+    for x in range(dim):
+        if 0 in img[:, x]:
+            break
+        left_border += 1
+    right_border = 0
+    for x in range(dim):
+        if 0 in img[:, dim - x]:
+            break
+        right_border += 1
+
+    return (top_border, left_border, bottom_border, right_border)
+
+
+def center_number(img):
+    borders = find_borders(img)
+    invert = 255 - img
+    x_shift = (borders[3] - borders[1]) // 2
+    y_shift = (borders[2] - borders[0]) // 2
+    M = np.float32([[1, 0, x_shift], [0, 1, y_shift]])
+    invert = cv2.warpAffine(invert, M, (invert.shape[1], invert.shape[0]))
+    img = 255 - invert
+    return img, -1
+
+
+def preprocess_digit(img):
+    img, prediction = find_number(img)
+    if prediction == -1:
+        img, prediction = center_number(img)
+    return img, prediction
