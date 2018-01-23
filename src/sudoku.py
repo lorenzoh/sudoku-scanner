@@ -207,16 +207,20 @@ class Sudoku:
         for x in range(0, grid_size, digit_size):
             for y in range(0, grid_size, digit_size):
                 digit = img[y:(y + digit_size), x:(x + digit_size)]
-                cleaned_digit, prediction = find_number(digit.copy())
-
-                cleaned_digit, prediction = center_number(digit)
-                vis.show_img(cleaned_digit)
-                vis.show_img(digit)
+                cleaned_digit, empty = find_number(digit.copy())
+                if not empty:
+                    cleaned_digit = center_number(cleaned_digit)
                 self.cleaned[y:(y + digit_size), x:(x + digit_size)] = cleaned_digit
 
 
 def find_number(img):
-    number = False
+    """
+    Takes a cropped field from a sudoku and uses heuristics to determine if it
+    contains a digit.
+    Returns:
+    img <np.ndarray>:
+    """
+    empty = True
     dim = img.shape[0]
     min_area = dim
     max_area = dim * 10
@@ -232,9 +236,9 @@ def find_number(img):
             if img[pnt] == 0:
                 area, flood, _, corners = cv2.floodFill(img, mask, pnt, 128)
                 if area < max_area and area > min_area:
-                    number = True
+                    empty = False
                     break
-        if number:
+        if not empty:
             break
     if not number:
         img[:, :] = 255
