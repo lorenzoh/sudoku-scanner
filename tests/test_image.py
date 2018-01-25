@@ -20,10 +20,10 @@ def load_test_img():
 
 
 def test_to_grayscale():
-    img = get_test_img()
+    img = load_test_img()
     assert img.ndim == 3
     assert imageprocessing.to_grayscale(img).ndim == 2
 
 
 def test_get_mask_like():
-    assert imageprocessing.get_mask_like(np.ones((8, 8))) == np.zeros((10, 10))
+    assert np.array_equal(imageprocessing.get_mask_like(np.ones((8, 8))), np.zeros((10, 10)))
