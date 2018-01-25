@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 import vis
 import datautils
+import imageprocessing as imgprcs
 
 
 class Sudoku:
@@ -13,26 +14,38 @@ class Sudoku:
     Useful for inspecting the processing pipeline at every stage
     """
 
-    def __init__(self, img_path, preprocessing_options={}):
-        self.preprocessing_options = preprocessing_options
+    def __init__(self, img_path, save_steps=False):
         self.img_path = os.path.abspath(img_path)
         assert datautils.has_extensions(self.img_path, extensions=['jpg'])
 
         self.raw_img = cv2.imread(img_path)
         self.resized = self.resize(self.raw_img)
 
-        self.preprocessed = self.resized.copy()
-        self.grid = None
-        self.processed_grid = None
-        self.corners = None
 
-        self.is_preprocessed = False
-        self.is_transformed = False
-        self.is_grid_processed = False
+        self.corners = None
+        self.steps = [] if save_steps else None
+
 
         dat_path = ''.join(self.img_path.split(sep='.')[:-1]) + '.dat'
         if os.path.isfile(dat_path):
             self.true_digits = datautils.parse_dat(dat_path)
+
+
+    def process(self, processing_options={}):
+        img = self.resized
+
+        # Step 1: Process the image
+        img = imgprcs.to_grayscale(img)
+        img = imgprcs.threshold(img)
+        if self.steps is not None: self.steps.append(img.copy())
+        img = imgprcs.expose_grid(img)
+        if self.steps is not None: self.steps.append(img.copy())
+
+        # Step 2: Find corners and transform
+        self.corners = imgprcs.find_corners(img)
+
+        self.processed = img
+
 
     def resize(self, img, max_side=640):
         factor = max_side / max(img.shape)
@@ -191,9 +204,9 @@ class Sudoku:
 
         img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
         img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                cv2.THRESH_BINARY, 19, 5)
+                                    cv2.THRESH_BINARY, 19, 5)
 
-        self.processed_grid  = img
+        self.processed_grid = img
 
     def preprocess_digits(self):
         if not self.is_grid_processed:
@@ -210,7 +223,8 @@ class Sudoku:
                 cleaned_digit, empty = find_number(digit.copy())
                 if not empty:
                     cleaned_digit = center_number(cleaned_digit)
-                self.cleaned[y:(y + digit_size), x:(x + digit_size)] = cleaned_digit
+                self.cleaned[y:(y + digit_size),
+                             x:(x + digit_size)] = cleaned_digit
 
 
 def find_number(img):
@@ -226,7 +240,7 @@ def find_number(img):
     max_area = dim * 10
     center = dim // 2
     max_center_dist = (3 * dim) // 16
-    mask = np.zeros((dim+2, dim+2), np.uint8)
+    mask = np.zeros((dim + 2, dim + 2), np.uint8)
     for x in range(max_center_dist):
         for i in range(2):
             if i == 0:
@@ -245,7 +259,7 @@ def find_number(img):
         return img, 0
     else:
         img[img == 0] = 255
-        mask = np.zeros((dim+2, dim+2), np.uint8)
+        mask = np.zeros((dim + 2, dim + 2), np.uint8)
         area, flood, _, corners = cv2.floodFill(img, mask, pnt, 0)
         img[img == 128] = 255
         return img, -1
