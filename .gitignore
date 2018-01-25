@@ -4,3 +4,4 @@ data
 tests/.cache
 __pycache__
 notebooks/testing*
+.cache
