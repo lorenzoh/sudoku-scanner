@@ -8,7 +8,6 @@ module_path = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../src'))
 sys.path.insert(0, module_path)
 
-import sudoku
 import imageprocessing
 
 
