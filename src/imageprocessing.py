@@ -5,6 +5,13 @@ import numpy as np
 star_kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], np.uint8)
 
 
+def resize(img, max_side=640):
+    factor = max_side / max(img.shape)
+    img = cv2.resize(img.copy(), None, fx=factor, fy=factor,
+                     interpolation=cv2.INTER_AREA)
+    return img
+
+
 def to_grayscale(img):
     if img.shape[-1] == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -26,12 +33,12 @@ def threshold(img, options={}):
 def expose_grid(img, options={}):
     inverse = 255 - img
     mask = get_mask_like(img)
-    dim = min(inverse.shape)
+    size = min(inverse.shape)
 
     biggest_area = 0
 
     # looks for objects in the image, saving location of the largest
-    for x in range(dim // 4, 3 * (dim // 4)):
+    for x in range(size // 4, 3 * (size // 4)):
         if inverse[x, x] == 0:
             area, img, _, corners = cv2.floodFill(
                 inverse, mask, seedPoint=(x + 1, x + 1), newVal=64)
@@ -79,10 +86,110 @@ def find_corners(img, options={}):
 
     return corners
 
+
+def transform(img, corners, options={}):
+    size = options.get('transform_size', 288)
+    assert (size % 9) == 0
+    boundary = np.float32([[0, 0], [size, 0], [0, size], [size, size]])
+    M = cv2.getPerspectiveTransform(corners.astype(np.float32), boundary)
+
+    img = cv2.warpPerspective(img, M, (size, size))
+
+    return img
+
+
+def find_digits(img):
+    size = img.shape[0]
+    digit_size = size // 9
+
+    digits = []
+
+    for y in range(0, size, digit_size):
+        for x in range(0, size, digit_size):
+            digit = img[y:(y + digit_size), x:(x + digit_size)].copy()
+            digit = clean_digit(digit)
+
+            digits.append(digit)
+
+    return digits
+
+
+def clean_digit(img):
+    is_empty = True
+    size = img.shape[0]
+    min_area = size
+    max_area = size * 10
+    center = size // 2
+    max_center_dist = (3 * size) // 16
+    mask = np.zeros((size + 2, size + 2), np.uint8)
+    for x in range(max_center_dist):
+        for i in range(2):
+            if i == 0:
+                pnt = (center + x, center + x)
+            elif i == 1:
+                pnt = (center - x, center - x)
+            if img[pnt] == 0:
+                area, flood, _, corners = cv2.floodFill(img, mask, pnt, 128)
+                if area < max_area and area > min_area:
+                    is_empty = False
+                    break
+        if not is_empty:
+            break
+    if is_empty:
+        return None
+    else:
+        img[img == 0] = 255
+        mask = np.zeros((size + 2, size + 2), np.uint8)
+        area, flood, _, corners = cv2.floodFill(img, mask, pnt, 0)
+        img[img == 128] = 255
+
+        img = center_digit(img)
+
+        return img
+
+
+def center_digit(img):
+    borders = find_borders(img)
+    invert = 255 - img
+    x_shift = (borders[3] - borders[1]) // 2
+    y_shift = (borders[2] - borders[0]) // 2
+    M = np.float32([[1, 0, x_shift], [0, 1, y_shift]])
+    invert = cv2.warpAffine(invert, M, (invert.shape[1], invert.shape[0]))
+    img = 255 - invert
+    return img
+
+
+def find_borders(img):
+    dim = img.shape[0] - 1
+    top_border = 0
+
+    for y in range(dim):
+        if 0 in img[y, :]:
+            break
+        top_border += 1
+    bottom_border = 0
+    for y in range(dim):
+        if 0 in img[dim - y, :]:
+            break
+        bottom_border += 1
+    left_border = 0
+    for x in range(dim):
+        if 0 in img[:, x]:
+            break
+        left_border += 1
+    right_border = 0
+    for x in range(dim):
+        if 0 in img[:, dim - x]:
+            break
+        right_border += 1
+
+    return (top_border, left_border, bottom_border, right_border)
+
+
 def get_mask_like(img):
     """
     Constructs an array of zeros like the input image with one field padding on
-    every side.
+    all four sides.
     (Used for some OpenCV functions)
     """
     return np.zeros((img.shape[0] + 2, img.shape[1] + 2), dtype=np.uint8)
