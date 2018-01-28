@@ -26,3 +26,11 @@ def test_to_grayscale():
 
 def test_get_mask_like():
     assert np.array_equal(imageprocessing.get_mask_like(np.ones((8, 8))), np.zeros((10, 10)))
+
+
+def test_threshold():
+    img = load_test_img()
+    grayscale = imageprocessing.to_grayscale(img)
+    thresholded = imageprocessing.threshold(grayscale)
+    assert grayscale.shape == thresholded.shape
+    assert np.unique(thresholded).tolist() == [0, 255]
