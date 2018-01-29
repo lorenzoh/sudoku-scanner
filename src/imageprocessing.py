@@ -1,3 +1,5 @@
+#!/bin/bash
+"""Functions for processing sudoku images"""
 import cv2
 import numpy as np
 
@@ -6,6 +8,7 @@ star_kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], np.uint8)
 
 
 def resize(img, max_side=640):
+    """Resizes the image's largest side to 640 and the other proportionally."""
     factor = max_side / max(img.shape)
     img = cv2.resize(img.copy(), None, fx=factor, fy=factor,
                      interpolation=cv2.INTER_AREA)
@@ -13,12 +16,14 @@ def resize(img, max_side=640):
 
 
 def to_grayscale(img):
+    """Converts a colored image to grayscale"""
     if img.shape[-1] == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     return img
 
 
 def threshold(img, options={}):
+    """Applies a blur and thresholding to a grayscale image."""
     blur_size = options.get('blur_1_size', 13)
 
     img = cv2.GaussianBlur(img, ksize=(blur_size, blur_size), sigmaX=0)
@@ -30,7 +35,11 @@ def threshold(img, options={}):
     return img
 
 
-def expose_grid(img, options={}):
+def expose_grid(img, options=dict()):
+    """
+    Finds the biggest connected part in the image, the grid, and removes
+    everything else from the images.
+    """
     inverse = 255 - img
     mask = get_mask_like(img)
     size = min(inverse.shape)
@@ -40,7 +49,7 @@ def expose_grid(img, options={}):
     # looks for objects in the image, saving location of the largest
     for x in range(size // 4, 3 * (size // 4)):
         if inverse[x, x] == 0:
-            area, img, _, corners = cv2.floodFill(
+            area, img, _, _ = cv2.floodFill(
                 inverse, mask, seedPoint=(x + 1, x + 1), newVal=64)
             if area > biggest_area:
                 biggest_area = area
@@ -51,7 +60,7 @@ def expose_grid(img, options={}):
 
     # removes every object but the biggest
     mask = get_mask_like(img)
-    area, img, mask, corners = cv2.floodFill(
+    area, img, _, _ = cv2.floodFill(
         inverse, mask, seedPoint=point, newVal=255)
     img[img != 255] = 0
 
@@ -61,7 +70,10 @@ def expose_grid(img, options={}):
 
 
 def find_corners(img, options={}):
-
+    """
+    Finds corners of the grid by sliding diagonal lines midwards from
+    all corners.
+    """
     height, width = img.shape[0] - 1, img.shape[1] - 1
     corners = np.zeros((4, 2), np.int32)
     LU_not, RU_not = True, True
@@ -88,6 +100,7 @@ def find_corners(img, options={}):
 
 
 def transform(img, corners, options={}):
+    """Zooms into image using corners."""
     size = options.get('transform_size', 288)
     assert (size % 9) == 0
     boundary = np.float32([[0, 0], [size, 0], [0, size], [size, size]])
@@ -99,6 +112,10 @@ def transform(img, corners, options={}):
 
 
 def find_digits(img):
+    """
+    Divides grid into cells, finds and cleans the numbers and saves
+    them to a list.
+    """
     size = img.shape[0]
     digit_size = size // 9
 
@@ -115,6 +132,10 @@ def find_digits(img):
 
 
 def clean_digit(img):
+    """
+    Looks for a big blob in the middle. If it finds one, assumes its
+    the digit and cleans everything else from the cell
+    """
     is_empty = True
     size = img.shape[0]
     min_area = size
@@ -129,7 +150,7 @@ def clean_digit(img):
             elif i == 1:
                 pnt = (center - x, center - x)
             if img[pnt] == 0:
-                area, flood, _, corners = cv2.floodFill(img, mask, pnt, 128)
+                area, *_ = cv2.floodFill(img, mask, pnt, 128)
                 if area < max_area and area > min_area:
                     is_empty = False
                     break
@@ -137,18 +158,19 @@ def clean_digit(img):
             break
     if is_empty:
         return None
-    else:
-        img[img == 0] = 255
-        mask = np.zeros((size + 2, size + 2), np.uint8)
-        area, flood, _, corners = cv2.floodFill(img, mask, pnt, 0)
-        img[img == 128] = 255
 
-        img = center_digit(img)
+    img[img == 0] = 255
+    mask = np.zeros((size + 2, size + 2), np.uint8)
+    area, *_ = cv2.floodFill(img, mask, pnt, 0)
+    img[img == 128] = 255
 
-        return img
+    img = center_digit(img)
+
+    return img
 
 
 def center_digit(img):
+    """Centers the digit to ease inference."""
     borders = find_borders(img)
     invert = 255 - img
     x_shift = (borders[3] - borders[1]) // 2
@@ -160,6 +182,7 @@ def center_digit(img):
 
 
 def find_borders(img):
+    """Finds borders of the number by sliding lines midwards from all sides"""
     dim = img.shape[0] - 1
     top_border = 0
 
