@@ -3,5 +3,5 @@ data
 .ipynb_checkpoints
 tests/.cache
 __pycache__
-notebooks/testing*
+notebooks/testing.ipynb
 .cache
