@@ -1,4 +1,3 @@
-# !/bin/python
 """
 Utilities for files
 """
@@ -14,7 +13,8 @@ def get_filenames(
     """Gets all files in folder and filters/transforms them"""
     filenames = os.listdir(folder)
     if extensions:
-        filenames = [filename for filename in filenames if has_extensions(filename, extensions)]
+        filenames = [filename for filename in filenames if has_extensions(
+            filename, extensions)]
     if sort:
         filenames = sort_filenames(filenames)
     if fullpath:
@@ -32,6 +32,7 @@ def has_extensions(filename: str, extensions: List[str]) -> bool:
 def sort_filenames(filenames: List[str]) -> List[str]:
     """Sorts a list of file names based on a number in the file name"""
     return sorted(filenames, key=lambda x: int(''.join([c for c in x if c in '0123456789'])))
+
 
 def parse_dat(dat_path: str) -> List[int]:
     """Parses ground truth .dat file from original dataset"""

@@ -1,4 +1,3 @@
-#!/bin/bash
 """Functions for processing sudoku images"""
 import cv2
 import numpy as np
@@ -22,9 +21,8 @@ def to_grayscale(img):
     return img
 
 
-def threshold(img, options={}):
+def threshold(img, blur_size=13):
     """Applies a blur and thresholding to a grayscale image."""
-    blur_size = options.get('blur_1_size', 13)
 
     img = cv2.GaussianBlur(img, ksize=(blur_size, blur_size), sigmaX=0)
     img = cv2.adaptiveThreshold(
@@ -35,7 +33,7 @@ def threshold(img, options={}):
     return img
 
 
-def expose_grid(img, options=dict()):
+def expose_grid(img):
     """
     Finds the biggest connected part in the image, the grid, and removes
     everything else from the images.
@@ -69,7 +67,7 @@ def expose_grid(img, options=dict()):
     return img
 
 
-def find_corners(img, options={}):
+def find_corners(img):
     """
     Finds corners of the grid by sliding diagonal lines midwards from
     all corners.
@@ -99,9 +97,8 @@ def find_corners(img, options={}):
     return corners
 
 
-def transform(img, corners, options={}):
+def transform(img, corners, size=288):
     """Zooms into image using corners."""
-    size = options.get('transform_size', 288)
     assert (size % 9) == 0
     boundary = np.float32([[0, 0], [size, 0], [0, size], [size, size]])
     M = cv2.getPerspectiveTransform(corners.astype(np.float32), boundary)
