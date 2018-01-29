@@ -2,12 +2,12 @@
 Provides the Sudoku class
 """
 import os
+from pathlib import Path
 
 import numpy as np
 import cv2
 from keras.models import load_model
 
-import datautils
 import imageprocessing as imgprcs
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -18,8 +18,10 @@ class Sudoku:
     """Holds information and data on one sudoku image"""
 
     def __init__(self, img_path, save_steps=False):
-        self.img_path = os.path.abspath(img_path)
-        assert datautils.has_extensions(self.img_path, extensions=['jpg'])
+        self.img_path = Path(img_path).absolute()
+        assert self.img_path.name.split(sep='.')[-1] == 'jpg'
+        if not self.img_path.exists():
+            raise OSError(f'Image at {img_path} not found')
 
         raw_img = cv2.imread(img_path)
         self.resized = imgprcs.resize(raw_img)
@@ -27,12 +29,6 @@ class Sudoku:
         self.digits = None
         self.predictions = None
         self.steps = [] if save_steps else None
-
-        dat_path = ''.join(self.img_path.split(sep='.')[:-1]) + '.dat'
-        if os.path.isfile(dat_path):
-            self.true_digits = datautils.parse_dat(dat_path)
-        else:
-            self.true_digits = None
 
     def process(self):
         """
@@ -87,10 +83,11 @@ class Sudoku:
             predictions, axis=1) + 1
 
     def __str__(self):
+        pred_array = np.array(self.predictions).reshape((9, 9))
         string = ''
         for y in range(9):
             for x in range(9):
-                string += '{} '.format(self.predictions[y, x])
+                string += '{} '.format(pred_array[y, x])
                 if x in (2, 5):
                     string += '|'
             if y in (2, 5):
