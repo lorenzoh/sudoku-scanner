@@ -1,3 +1,4 @@
+"""Tests for the data utilities"""
 import sys
 import os
 
@@ -10,18 +11,6 @@ import datautils
 
 test_data_path = os.path.abspath(os.path.join(
     os.path.dirname(__file__), 'testing_data'))
-
-
-def test_has_extensions():
-    assert datautils.has_extensions('image.jpg', ['jpg'])
-    assert datautils.has_extensions('image.jpg.png.gif', ['gif'])
-    assert not datautils.has_extensions('test.txt', ['gif'])
-
-
-def test_sort_filenames():
-    assert datautils.sort_filenames(['2.txt', '1.txt']) == ['1.txt', '2.txt']
-    assert datautils.sort_filenames(
-        ['a/b/c/2.d', 'a/b/c/1.d']) == ['a/b/c/1.d', 'a/b/c/2.d']
 
 
 def test_parse_dat():
