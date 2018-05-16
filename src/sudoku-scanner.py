@@ -2,7 +2,6 @@
 Command line tool for using the sudoku-scanner on saved images
 """
 import argparse
-import sys
 
 from sudoku import Sudoku
 
@@ -12,10 +11,30 @@ def scan(img_path):
     sudoku = Sudoku(img_path)
     sudoku.process()
     sudoku.predict()
-    print(sudoku)
+    return sudoku
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    path = sys.argv[1]
-    scan(path)
+    parser = argparse.ArgumentParser(
+        description='Scan a sudoku and (by default) print to stdout')
+    parser.add_argument(
+        'file',
+        type=argparse.FileType('r'),
+        help='Path to an image of a sudoku')
+    parser.add_argument(
+        '-o', '--output',
+        type=argparse.FileType('w'),
+        default=None,
+        help='Write file instead of printing to stdout')
+
+    args = parser.parse_args()
+
+    sudoku = scan(args.file.name)
+
+
+    if args.output:
+        args.output.write(sudoku.get_predictions())
+        #with open(args.output, 'w') as f:
+            #f.write(str(sudoku.predictions))
+    else:
+        print(sudoku)

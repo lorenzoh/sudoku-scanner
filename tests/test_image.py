@@ -15,7 +15,7 @@ test_data_path = os.path.abspath(os.path.join(
     os.path.dirname(__file__), 'testing_data'))
 
 def load_test_img():
-    return cv2.imread(os.path.join(test_data_path, 'image1.jpg'))
+    return cv2.imread(os.path.join(test_data_path, 'image1000.jpg'))
 
 
 def test_to_grayscale():

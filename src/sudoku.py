@@ -19,7 +19,9 @@ class Sudoku:
 
     def __init__(self, img_path, save_steps=False):
         self.img_path = Path(img_path).absolute()
-        assert self.img_path.name.split(sep='.')[-1] == 'jpg'
+
+        if not self.img_path.name.split(sep='.')[-1] == 'jpg':
+            raise ValueError(f'{self.img_path.name} is not a .jpg image')
         if not self.img_path.exists():
             raise OSError(f'Image at {img_path} not found')
 
@@ -81,6 +83,11 @@ class Sudoku:
         predictions = model.predict(digits_arr)
         self.predictions[self.predictions != 0] = np.argmax(
             predictions, axis=1) + 1
+
+    def get_predictions(self):
+        """ Returns: String of 81 digits detected in image"""
+        return ''.join(map(str, self.predictions))
+
 
     def __str__(self):
         pred_array = np.array(self.predictions).reshape((9, 9))
